@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 
-def overlay_keypoints_on_frame(frame_path, keypoints_path, output_path):
+def visualize_frame_with_keypoints(frame_path, keypoints_path):
     # Load frame
     frame = cv2.imread(frame_path)
 
@@ -9,20 +9,32 @@ def overlay_keypoints_on_frame(frame_path, keypoints_path, output_path):
     with open(keypoints_path, 'r') as f:
         keypoints = np.array([list(map(float, line.strip().split(','))) for line in f])
 
-    # Draw keypoints
+    # Get frame dimensions
+    h, w, _ = frame.shape
+
+    # Overlay keypoints
     for kp in keypoints:
+        if len(kp) < 3:
+            print(f"Skipping invalid keypoint: {kp}")
+            continue  # Skip malformed keypoints
+
         x, y, conf = kp[:3]
-        if conf > 0.5:  # Draw only if confidence is high
+        print(f"Keypoint: x={x}, y={y}, conf={conf}")
+
+        if not (0 <= x < w and 0 <= y < h):
+            print(f"Keypoint out of bounds: x={x}, y={y}, frame width={w}, frame height={h}")
+            continue
+
+        if conf > 0.1:  # Display all keypoints with a minimum confidence
             cv2.circle(frame, (int(x), int(y)), 5, (0, 255, 0), -1)
 
-    # Save or display frame with keypoints
-    cv2.imwrite(output_path, frame)
-    cv2.imshow('Keypoints Overlay', frame)
+    # Display the frame
+    cv2.imshow('Keypoints Visualization', frame)
     cv2.waitKey(0)
+    cv2.destroyAllWindows()
 
 # Example usage
-overlay_keypoints_on_frame(
-    'extracted_frames/frames/frame_0.jpg',
-    'extracted_frames/keypoints/keypoints_0.txt',
-    'output/frame_0_with_keypoints.jpg'
+visualize_frame_with_keypoints(
+    frame_path='extracted_frames/frames/frame_0.jpg',
+    keypoints_path='extracted_frames/keypoints/keypoints_0.txt'
 )
