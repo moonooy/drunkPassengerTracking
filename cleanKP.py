@@ -53,7 +53,7 @@ def clean_keypoints_folder(keypoints_folder, output_folder, confidence_threshold
 
 # Example usage
 clean_keypoints_folder(
-    keypoints_folder='extracted_frames/keypoints',  # Original keypoints folder
-    output_folder='cleaned_keypoints',              # Output folder for cleaned files
+    keypoints_folder='extracted_frames_normal_behavior/keypoints',  # Original keypoints folder
+    output_folder='cleaned_keypoints_normal_behaviors/',              # Output folder for cleaned files
     confidence_threshold=0.1                        # Confidence threshold
 )

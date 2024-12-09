@@ -5,8 +5,8 @@ import os
 # Load YOLO-pose model onto the GPU
 pose_model = YOLO('yolov8n-pose.pt')  # Replace with your pose estimation model
 
-def process_video(video_path='nonCoding\cut-drunk1.mp4',
-                  output_folder='extracted_frames', frame_rate=30):
+def process_video(video_path='nonCoding\cut-NormalBehavior1.mp4',
+                  output_folder='extracted_frames_normal_behavior', frame_rate=30):
     """
     Process a video to extract frames and generate keypoints using GPU.
     

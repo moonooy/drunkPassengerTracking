@@ -98,10 +98,9 @@ def visualize_frames_with_keypoints(frames_folder, keypoints_folder, delay=33):
 
     cv2.destroyAllWindows()
 
-
 # Example usage
 visualize_frames_with_keypoints(
-    frames_folder='extracted_frames/frames',  # Replace with your frames folder
-    keypoints_folder='cleaned_keypoints',  # Replace with your keypoints folder
+    frames_folder='extracted_frames_normal_behavior/frames',  # Replace with your frames folder
+    keypoints_folder='cleaned_keypoints_normal_behaviors',  # Replace with your keypoints folder
     delay=33  # 30 FPS
 )
