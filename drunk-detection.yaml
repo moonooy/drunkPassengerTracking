@@ -1,0 +1,5 @@
+yolo_model_path: yolov8n-pose.pt
+lstm_model_path: drunk_behavior_lstm.h5
+sequence_length: 30
+confidence_threshold: 0.5
+video_path: raw-drunkPerson2.mp4  # Replace with your video file path
