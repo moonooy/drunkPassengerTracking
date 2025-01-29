@@ -33,7 +33,7 @@ class DrunkDetection:
         Returns:
             dict: Keypoints indexed by person IDs.
         """
-        results = self.pose_model.predict(frame, save=False)
+        results = self.pose_model.predict(frame, save=False, device=0) #device=0 to enable GPU usage.
         keypoints_dict = {}
 
         print("Debug: YOLO results:", results[0])  # Check YOLO results object
