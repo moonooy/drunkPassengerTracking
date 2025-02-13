@@ -7,6 +7,11 @@ from collections import deque, defaultdict
 import yaml
 import tensorflow as tf
 import time
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class DrunkDetectionReID:
     def __init__(self, yolo_model_path, lstm_model_path, sequence_length=30, confidence_threshold=0.5):
@@ -30,21 +35,19 @@ class DrunkDetectionReID:
         if hasattr(results[0], 'keypoints') and results[0].keypoints is not None:
             keypoints_tensor = results[0].keypoints.data.cpu().numpy()
             for i, keypoints in enumerate(keypoints_tensor):
-                if keypoints.shape[0] != 17:
+                # ✅ FIX: Ensure the shape is always (17,3)
+                if keypoints.shape[0] == 0:  
+                    keypoints = np.zeros((17, 3))  
+                elif keypoints.shape[0] != 17:
                     padded_keypoints = np.zeros((17, 3))
                     padded_keypoints[:keypoints.shape[0], :] = keypoints
                     keypoints = padded_keypoints
 
                 person_id = identities[i] if identities is not None else i
                 keypoints_dict[person_id] = keypoints.flatten()
-                print(f"Debug: Person ID {person_id}, Keypoints Shape: {keypoints.shape}")
+                logger.debug(f"Person {person_id} Keypoints: {keypoints.shape}")
         else:
-            print("Debug: No keypoints detected in the frame.")
-
-        # Debug: Print detected boxes and IDs
-        for i, box in enumerate(boxes):
-            person_id = box.id if box.id is not None else i
-            print(f"Debug: Box {i}, Person ID: {person_id}, Coordinates: {box.xyxy[0].tolist()}")
+            logger.warning("⚠️ No keypoints detected in the frame.")
 
         return keypoints_dict, boxes
 
@@ -141,11 +144,11 @@ def main(config_path):
             break
 
         frame_count += 1
-
         annotated_frame = drunk_detector.process_frame(frame)
 
-        # FPS Calculation
-        fps = frame_count / (time.time() - fps_start_time)
+        # ✅ FPS Calculation Fix
+        elapsed_time = time.time() - fps_start_time
+        fps = frame_count / elapsed_time if elapsed_time > 0 else 0
         cv2.putText(annotated_frame, f"FPS: {fps:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
 
         cv2.imshow('Drunk Detection', annotated_frame)

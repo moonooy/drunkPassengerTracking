@@ -1,7 +1,7 @@
 yolo_model_path: yolov8n-pose.pt
-lstm_model_path: drunk_behavior_lstm.h5
+lstm_model_path: CUSTOM_drunk_behavior_lstm.h5
 sequence_length: 30
 confidence_threshold: 0.5
-video_path: nonCoding\cut-drunk1.mp4  # Replace with your video file path
-# video_path: nonCoding\raw-drunkPerson2.mp4
-# video_path: nonCoding\cut-NormalBehavior1.mp4
+# video_path: nonCoding\Videos for dataset\Test set\TST BOTH R\TST BOTH R.mp4
+video_path1: nonCoding\Videos for dataset\Test set\TST BOTH L\TST BOTH L.mp4  # First test video
+video_path2: nonCoding\Videos for dataset\Test set\TST BOTH R\TST BOTH R.mp4  # Second test video

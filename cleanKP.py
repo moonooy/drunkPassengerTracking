@@ -1,40 +1,47 @@
 import os
 import numpy as np
 
-def filter_and_pad_keypoints(keypoints, confidence_threshold=0.1):
+def filter_and_pad_keypoints(data, confidence_threshold=0.1):
     """
-    Filters out invalid keypoints based on confidence and ensures consistent (17,3) shape.
+    Filters and pads keypoints while keeping bounding box coordinates.
 
     Args:
-        keypoints (np.array): Array of keypoints (x, y, confidence).
+        data (list): List containing bounding box (first 4 values) and keypoints (remaining values).
         confidence_threshold (float): Minimum confidence to retain a keypoint.
 
     Returns:
-        np.array: Cleaned keypoints with missing values filled and shape corrected to (17,3).
+        np.array: Cleaned keypoints with bounding box and shape correction.
     """
-    # ✅ Remove keypoints with confidence below threshold or at (0,0)
-    valid_keypoints = [kp for kp in keypoints if len(kp) == 3 and kp[2] > confidence_threshold and not (kp[0] == 0 and kp[1] == 0)]
+    # ✅ Extract bounding box (first 4 values)
+    bbox = np.array(data[:4], dtype=float)  # Bounding box (x1, y1, x2, y2)
+
+    # ✅ Extract keypoints (remaining values)
+    keypoints = np.array(data[4:], dtype=float).reshape(-1, 3)  # (x, y, confidence)
+
+    # ✅ Filter out low-confidence keypoints and invalid (0,0) ones
+    valid_keypoints = [
+        kp for kp in keypoints if kp[2] > confidence_threshold and not (kp[0] == 0 and kp[1] == 0)
+    ]
     valid_keypoints = np.array(valid_keypoints)
 
-    # ✅ Ensure the output is always (17,3)
-    cleaned_keypoints = np.zeros((17, 3))  # Initialize with zeros (safe padding)
-    
+    # ✅ Ensure 17 keypoints exist (zero-pad if missing)
+    cleaned_keypoints = np.zeros((17, 3))  # Safe padding
     if valid_keypoints.shape[0] > 0:
         num_valid = min(valid_keypoints.shape[0], 17)
         cleaned_keypoints[:num_valid, :] = valid_keypoints[:num_valid, :]
-    
-    return cleaned_keypoints
 
+    # ✅ Return concatenated bounding box + keypoints
+    return np.concatenate((bbox, cleaned_keypoints.flatten()))
 
 def clean_all_keypoints(root_folder="dataset_output", confidence_threshold=0.1):
     """
-    Automatically finds and cleans all keypoints folders inside `dataset_output/`.
+    Cleans all keypoints while keeping bounding box information.
 
     Args:
-        root_folder (str): Path to the root dataset folder containing keypoints directories.
+        root_folder (str): Path to the root dataset folder.
         confidence_threshold (float): Minimum confidence to retain a keypoint.
     """
-    # Get all folders inside dataset_output/
+    # Get all folders inside dataset_output
     subfolders = [f for f in os.listdir(root_folder) if os.path.isdir(os.path.join(root_folder, f))]
 
     for subfolder in subfolders:
@@ -50,38 +57,33 @@ def clean_all_keypoints(root_folder="dataset_output", confidence_threshold=0.1):
                 with open(keypoint_file, 'r') as f:
                     line = f.readline().strip()
                     if not line:
-                        print(f"⚠️ Warning: {keypoint_file} is empty. Skipping.")
-                        continue  # Skip empty files
+                        print(f"Warning: {keypoint_file} is empty. Skipping.")
+                        continue
 
                     values = line.split(',')
-                    
+
                     try:
-                        values = list(map(float, values))  # Convert to floats
+                        values = list(map(float, values))  # Convert to float
                     except ValueError:
-                        print(f"🚫 Error: {keypoint_file} contains invalid values. Skipping.")
+                        print(f"Error: {keypoint_file} contains invalid values. Skipping.")
                         continue
 
-                    # ✅ Reshape to ensure (17,3) structure
-                    if len(values) == 51:
-                        keypoints = np.array(values).reshape(17, 3)
-                    else:
-                        print(f"⚠️ Warning: {keypoint_file} has incorrect format (Expected 51 values, got {len(values)}). Skipping.")
+                    # ✅ Ensure correct number of values (bounding box + 17 keypoints)
+                    expected_values = 4 + (17 * 3)
+                    if len(values) != expected_values:
+                        print(f"Skipping file with incorrect format (expected {expected_values} values, got {len(values)}): {keypoint_file}")
                         continue
 
-                # ✅ Filter and pad keypoints
-                cleaned_keypoints = filter_and_pad_keypoints(keypoints, confidence_threshold)
-
-                # ✅ Save cleaned keypoints
+                # ✅ Clean and save keypoints
+                cleaned_data = filter_and_pad_keypoints(values, confidence_threshold)
                 output_file = os.path.join(output_folder, os.path.basename(keypoint_file))
                 with open(output_file, 'w') as f:
-                    for kp in cleaned_keypoints:
-                        f.write(','.join(map(str, kp)) + '\n')
+                    f.write(','.join(map(str, cleaned_data)) + '\n')
 
-            print(f"✅ Cleaned keypoints saved to {output_folder}")
+            print(f"Cleaned keypoints saved to {output_folder}")
 
         else:
-            print(f"🚫 No keypoints folder found in {subfolder}, skipping.")
-
+            print(f"No keypoints folder found in {subfolder}, skipping.")
 
 # Run the script
 if __name__ == "__main__":
