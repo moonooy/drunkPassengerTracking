@@ -1,0 +1,6 @@
+DEEPSORT:
+  REID_CKPT: "models\osnet_x0_25_imagenet.pth"
+  MAX_AGE: 9000  # Keep tracking for 5 min
+  MIN_CONFIDENCE: 0.3
+  NMS_MAX_OVERLAP: 0.5
+  MAX_IOU_DISTANCE: 0.7
