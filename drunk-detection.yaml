@@ -1,5 +1,5 @@
 yolo_model_path: yolov8n-pose.pt
-lstm_model_path: CUSTOM_drunk_behavior_lstm.h5
+lstm_model_path: balanced-default_drunk_behavior_lstm.h5
 sequence_length: 30
 confidence_threshold: 0.5
 # video_path: nonCoding\Videos for dataset\Test set\TST BOTH R\TST BOTH R.mp4

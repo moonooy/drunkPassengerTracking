@@ -8,8 +8,8 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout, Masking, BatchNormalization
 from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
 
-# 🔹 Step 1: Load and Normalize Dataset
-def load_keypoints(folder, label, sequence_length=30, img_width=1920, img_height=1080):
+# Step 1: Load and Normalize Dataset
+def load_keypoints(folder, label, sequence_length=30):
     keypoints_files = sorted([os.path.join(folder, f) for f in os.listdir(folder) if f.endswith('.txt')])
     sequences = []
     labels = []
@@ -18,20 +18,18 @@ def load_keypoints(folder, label, sequence_length=30, img_width=1920, img_height
         sequence = []
         for j in range(sequence_length):
             with open(keypoints_files[i + j], 'r') as f:
-                keypoints = np.array([list(map(float, line.strip().split(','))) for line in f])
+                values = list(map(float, f.readline().strip().split(',')))
 
-                # ✅ Ensure correct shape (17, 3)
-                if keypoints.shape != (17, 3):
-                    padded_keypoints = np.zeros((17, 3))
-                    num_valid = min(keypoints.shape[0], 17)
-                    padded_keypoints[:num_valid, :] = keypoints[:num_valid, :]
-                    keypoints = padded_keypoints
+                # ✅ Ignore first 4 values (bounding box) and keep only keypoints
+                keypoints = np.array(values[4:])  
 
-                # ✅ Normalize keypoints
-                keypoints[:, 0] /= img_width   # Normalize x-coordinates
-                keypoints[:, 1] /= img_height  # Normalize y-coordinates
-
-                sequence.append(keypoints.flatten())
+                # ✅ Ensure correct shape (17, 3) for keypoints
+                if keypoints.shape[0] != 51:  
+                    print(f"⚠️ Warning: Unexpected keypoints shape {keypoints.shape} in {keypoints_files[i + j]}. Skipping.")
+                    continue
+                
+                keypoints = keypoints.reshape(17, 3)  # Reshape to (17,3)
+                sequence.append(keypoints.flatten())  # Flatten (x, y, confidence)
 
         sequences.append(np.array(sequence))
         labels.append(label)
@@ -40,7 +38,7 @@ def load_keypoints(folder, label, sequence_length=30, img_width=1920, img_height
 
 # 🔹 Load and Combine Datasets
 drunk_sequences, drunk_labels = load_keypoints(r'dataset_output\extracted_frames_drunk_behavior\cleaned_keypoints', label=1)
-normal_sequences, normal_labels = load_keypoints(r'dataset_output\extracted_frames_normal_behavior\augmented_keypoints', label=0)
+normal_sequences, normal_labels = load_keypoints(r'dataset_output\extracted_frames_normal_behavior\cleaned_keypoints', label=0)
 
 sequences = np.array(drunk_sequences + normal_sequences)
 labels = np.array(drunk_labels + normal_labels)
@@ -121,5 +119,5 @@ plt.legend(loc="lower right")
 plt.show()
 
 # 🔹 Step 8: Save the Model
-model.save('CUSTOM_drunk_behavior_lstm.h5')
+model.save('qwerty-default_drunk_behavior_lstm.h5')
 print("\nModel saved as CUSTOM_drunk_behavior_lstm.h5")
