@@ -62,20 +62,24 @@ class DrunkDetectionReID:
             return {}
 
         for person_id, keypoints in keypoints_dict.items():
+            # Ensure keypoints are numpy arrays
+            keypoints = np.array(keypoints, dtype=np.float32)
+
             self.person_buffers[person_id].append(keypoints)
 
             if len(self.person_buffers[person_id]) == self.sequence_length:
-                sequence = np.array(self.person_buffers[person_id])
+                sequence = np.array(list(self.person_buffers[person_id]))
 
-                # Ensure sequence shape consistency
-                if sequence.shape == (self.sequence_length, keypoints.shape[0]):  
+                # Ensure correct shape before adding to batch
+                expected_shape = (self.sequence_length, keypoints.shape[0])
+                if sequence.shape == expected_shape:
                     batch_sequences.append(sequence)
                     person_ids.append(person_id)
                 else:
                     logger.warning(f"Skipping inconsistent sequence for Person {person_id}: {sequence.shape}")
 
         if batch_sequences:
-            batch_sequences = np.array(batch_sequences)
+            batch_sequences = np.array(batch_sequences, dtype=np.float32)
             predictions = self.lstm_model.predict(batch_sequences, batch_size=len(batch_sequences)).flatten()
             return {person_ids[i]: predictions[i] > self.confidence_threshold for i in range(len(person_ids))}
 
@@ -88,12 +92,13 @@ class DrunkDetectionReID:
         """
         keypoints_dict, tracked_objects = self.extract_keypoints_and_track(frame)
 
-        # If no people are detected, return the original frame
+        # If no persons detected, return the original frame without crashing
         if not tracked_objects:
             logger.info("No persons detected in this frame.")
             return frame  
 
-        classifications = self.classify_behavior_batch(keypoints_dict)
+        # Ensure only valid sequences are passed
+        classifications = self.classify_behavior_batch(keypoints_dict) if keypoints_dict else {}
         self.person_states.update(classifications)
 
         # Draw bounding boxes and labels
