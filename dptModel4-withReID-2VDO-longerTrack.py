@@ -1,27 +1,34 @@
-# Supposedly longer track
 import cv2
 import numpy as np
 from ultralytics import YOLO
 from deep_sort_realtime.deepsort_tracker import DeepSort
+print("DeepSort is successfully imported!")
 from tensorflow.keras.models import load_model
 from collections import deque, defaultdict
 import yaml
 import tensorflow as tf
 import time
 import logging
+from concurrent.futures import ThreadPoolExecutor
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class DrunkDetectionReID:
-    def __init__(self, yolo_model_path, lstm_model_path, deepsort_model_path, sequence_length=30, confidence_threshold=0.5):
+    def __init__(self, yolo_model_path, lstm_model_path, sequence_length=30, confidence_threshold=0.5):
         self.pose_model = YOLO(yolo_model_path)
         self.lstm_model = load_model(lstm_model_path)
         self.sequence_length = sequence_length
         self.confidence_threshold = confidence_threshold
         
-        # Initialize DeepSORT tracker
-        self.tracker = DeepSort(model_path=deepsort_model_path, max_age=300)  # 5 min tracking
+        self.tracker = DeepSort(
+            max_age=300,  # 5 minutes
+            n_init=3,  # Require 3 detections before tracking starts
+            max_cosine_distance=0.2,  # Lower means more strict tracking
+            nn_budget=100,  # Controls feature memory (higher = better tracking)
+            # embedder="torchreid"  # (Keep None for now, but test mobilenet/torchreid)
+        )
+
         self.person_buffers = defaultdict(lambda: deque(maxlen=sequence_length))
         self.person_states = {}
 
@@ -29,20 +36,21 @@ class DrunkDetectionReID:
         """
         Extracts keypoints and tracks using DeepSORT.
         """
-        results = self.pose_model.predict(frame, save=False, device=0)  # Use GPU
+        results = self.pose_model.track(frame, persist=True, device=0, classes=0)  # ✅ Use built-in YOLO tracking
         detections = []
         keypoints_dict = {}
-        
+
         for r in results:
             if hasattr(r, 'boxes') and r.boxes is not None:
                 for i, box in enumerate(r.boxes.xyxy.cpu().numpy()):
                     conf = r.boxes.conf[i].item()
                     if conf > self.confidence_threshold:
-                        detections.append((box, conf))  # Format: (bbox, confidence)
-        
+                        detections.append((box, conf))  # (bbox, confidence)
+
+        # ✅ Update DeepSORT tracker
         tracked_objects = self.tracker.update_tracks(detections, frame=frame)
-        
-        # Extract keypoints and associate with DeepSORT IDs
+
+        # ✅ Extract keypoints associated with track IDs
         if hasattr(results[0], 'keypoints') and results[0].keypoints is not None:
             keypoints_tensor = results[0].keypoints.data.cpu().numpy()
             for i, track in enumerate(tracked_objects):
@@ -133,17 +141,28 @@ def main(config_path):
     with open(config_path, 'r') as file:
         config = yaml.safe_load(file)
 
-    drunk_detector = DrunkDetectionReID(
+    # ✅ Separate instances for each video
+    drunk_detector1 = DrunkDetectionReID(
         yolo_model_path=config['yolo_model_path'],
-        lstm_model_path=config['lstm_model_path'],
-        deepsort_model_path="models/osnet_x0_25_market1501.pt"
+        lstm_model_path=config['lstm_model_path']
+    )
+
+    drunk_detector2 = DrunkDetectionReID(
+        yolo_model_path=config['yolo_model_path'],
+        lstm_model_path=config['lstm_model_path']
     )
 
     video_paths = [config['video_path1'], config['video_path2']]
     window_names = ["Drunk Detection - Video 1", "Drunk Detection - Video 2"]
 
-    for i in range(2):
-        process_video(video_paths[i], window_names[i], drunk_detector)
+    # ✅ Ensure each video gets its own tracker
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        futures = [
+            executor.submit(process_video, video_paths[i], window_names[i], detector)
+            for i, detector in enumerate([drunk_detector1, drunk_detector2])
+        ]
+        for future in futures:
+            future.result()
 
 if __name__ == "__main__":
     main('drunk-detection.yaml')
